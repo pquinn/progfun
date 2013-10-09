@@ -42,7 +42,7 @@ abstract class TweetSet {
    * Question: Can we implment this method here, or should it remain abstract
    * and be implemented in the subclasses?
    */
-  def filter(p: Tweet => Boolean): TweetSet = ???
+  def filter(p: Tweet => Boolean): TweetSet = filterAcc(p, new Empty)
 
   /**
    * This is a helper method for `filter` that propagetes the accumulated tweets.
@@ -55,7 +55,7 @@ abstract class TweetSet {
    * Question: Should we implment this method here, or should it remain abstract
    * and be implemented in the subclasses?
    */
-   def union(that: TweetSet): TweetSet = ???
+   def union(that: TweetSet): TweetSet
 
   /**
    * Returns the tweet from this set which has the greatest retweet count.
@@ -66,7 +66,9 @@ abstract class TweetSet {
    * Question: Should we implment this method here, or should it remain abstract
    * and be implemented in the subclasses?
    */
-  def mostRetweeted: Tweet = ???
+  def mostRetweeted: Tweet
+  
+  def mostRetweetedIter(curr: Tweet): Tweet
 
   /**
    * Returns a list containing all tweets of this set, sorted by retweet count
@@ -77,7 +79,10 @@ abstract class TweetSet {
    * Question: Should we implment this method here, or should it remain abstract
    * and be implemented in the subclasses?
    */
-  def descendingByRetweet: TweetList = ???
+  def descendingByRetweet: TweetList = {
+    val most = this.mostRetweeted
+    new Cons(most, this.remove(most).descendingByRetweet)
+  }
 
 
   /**
@@ -109,8 +114,8 @@ abstract class TweetSet {
 }
 
 class Empty extends TweetSet {
-
-  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = ???
+  
+  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = acc
 
 
   /**
@@ -124,11 +129,19 @@ class Empty extends TweetSet {
   def remove(tweet: Tweet): TweetSet = this
 
   def foreach(f: Tweet => Unit): Unit = ()
+  
+  def union(that: TweetSet) = that
+  
+  def mostRetweeted = throw new NoSuchElementException
+  
+  def mostRetweetedIter(curr: Tweet) = curr
 }
 
 class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
-
-  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = ???
+  
+  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet =
+    if (p(elem)) (left.filterAcc(p, acc) union right.filterAcc(p, acc)) incl elem
+    else left.filterAcc(p, acc) union right.filterAcc(p, acc)
 
 
   /**
@@ -156,6 +169,19 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
     left.foreach(f)
     right.foreach(f)
   }
+  
+  //pretty sure this is right but not sure why
+  def union(that: TweetSet): TweetSet = 
+    ((left union right) union that) incl elem
+    
+  def mostRetweeted: Tweet = mostRetweetedIter(elem)
+  
+  def mostRetweetedIter(curr: Tweet): Tweet = {
+    val newCurr = if (elem.retweets > curr.retweets) elem else curr
+    val leftmost = left.mostRetweetedIter(newCurr)
+    val rightmost = right.mostRetweetedIter(newCurr)
+    if (leftmost.retweets > rightmost.retweets) leftmost else rightmost
+  }
 }
 
 trait TweetList {
@@ -167,16 +193,19 @@ trait TweetList {
       f(head)
       tail.foreach(f)
     }
+  def toString: String
 }
 
 object Nil extends TweetList {
   def head = throw new java.util.NoSuchElementException("head of EmptyList")
   def tail = throw new java.util.NoSuchElementException("tail of EmptyList")
   def isEmpty = true
+  override def toString = ""
 }
 
 class Cons(val head: Tweet, val tail: TweetList) extends TweetList {
   def isEmpty = false
+  override def toString = head.retweets + ", " + tail.toString
 }
 
 
@@ -196,5 +225,17 @@ object GoogleVsApple {
 
 object Main extends App {
   // Print the trending tweets
-  GoogleVsApple.trending foreach println
+  //GoogleVsApple.trending foreach println
+  
+  val t1 = new Tweet("user", "short text", 1000)
+  val t2 = new Tweet("user", "shorter text", 101)
+  val t3 = new Tweet("user", "this is a long text", 50)
+  val t4 = new Tweet("user", "this is quite a long text", 150)
+  val t5 = new Tweet("user", "this is some text", 15)
+  
+  val empty = new Empty
+  val ts = empty incl t1 incl t2 incl t3 incl t4 incl t5
+  
+  println(ts.mostRetweeted)
+  println(ts.descendingByRetweet)
 }
