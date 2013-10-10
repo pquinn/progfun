@@ -68,6 +68,10 @@ abstract class TweetSet {
    */
   def mostRetweeted: Tweet
   
+  /**
+   * Helper method for `mostRetweeted` that keeps track of the most retweeted 
+   * tweet in the tree.
+   */
   def mostRetweetedIter(curr: Tweet): Tweet
 
   /**
@@ -171,7 +175,7 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
   
   //pretty sure this is right but not sure why
   def union(that: TweetSet): TweetSet = 
-    ((left union right) union that) incl elem
+    (left union (right union that)) incl elem
     
   def mostRetweeted: Tweet = mostRetweetedIter(elem)
   
@@ -217,19 +221,19 @@ object GoogleVsApple {
   val google = List("android", "Android", "galaxy", "Galaxy", "nexus", "Nexus")
   val apple = List("ios", "iOS", "iphone", "iPhone", "ipad", "iPad")
 
-  lazy val googleTweets: TweetSet = ???
-  lazy val appleTweets: TweetSet = ???
+  lazy val googleTweets: TweetSet = TweetReader.allTweets.filter(tweet => google.exists(str => tweet.text.contains(str)))
+  lazy val appleTweets: TweetSet = TweetReader.allTweets.filter(tweet => apple.exists(str => tweet.text.contains(str)))
 
   /**
    * A list of all tweets mentioning a keyword from either apple or google,
    * sorted by the number of retweets.
    */
-  lazy val trending: TweetList = ???
+  lazy val trending: TweetList = (googleTweets union appleTweets).descendingByRetweet
 }
 
 object Main extends App {
   // Print the trending tweets
-  //GoogleVsApple.trending foreach println
+  GoogleVsApple.trending foreach println
   
   val t1 = new Tweet("user", "short text", 1000)
   val t2 = new Tweet("user", "shorter text", 101)
